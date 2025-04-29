@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Travel Planner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-image: url('https://images.unsplash.com/photo-1506929562872-bb421503ef21?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        
+        .overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .header {
+            background-color: rgba(58, 134, 255, 0.9);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            backdrop-filter: blur(5px);
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 20px auto;
+            width: 90%;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: rgba(249, 249, 249, 0.8);
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            max-width: 70%;
+            padding: 12px 15px;
+            border-radius: 18px;
+            line-height: 1.4;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .bot-message {
+            background-color: rgba(230, 242, 255, 0.9);
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .user-message {
+            background-color: rgba(58, 134, 255, 0.9);
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .input-area {
+            display: flex;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        #user-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+            background-color: rgba(255,255,255,0.8);
+        }
+        
+        #send-button {
+            background-color: #3a86ff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 0 20px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        #send-button:hover {
+            background-color: #2667cc;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #666;
+            font-style: italic;
+            background-color: rgba(255,255,255,0.7);
+            border-radius: 5px;
+            margin: 5px;
+            width: fit-content;
+        }
+        
+        .trip-summary {
+            background-color: rgba(240, 248, 255, 0.9);
+            border-left: 4px solid #3a86ff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .quick-reply {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 12px;
+            background-color: rgba(230, 242, 255, 0.9);
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            border: 1px solid rgba(58, 134, 255, 0.3);
+        }
+        
+        .quick-reply:hover {
+            background-color: rgba(204, 224, 255, 0.9);
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 600px) {
+            .message {
+                max-width: 85%;
+            }
+            
+            .chat-container {
+                width: 95%;
+                margin: 10px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay"></div>
+    <div class="header">
+        <h1>Ultimate Travel Planner</h1>
+        <p>I'll create your perfect trip with personalized recommendations!</p>
+    </div>
+    
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot-message">
+                Hello! I'm your premium travel assistant. Where would you like to go?
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typing-indicator">
+            Bot is typing...
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Type your message here..." autofocus>
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const typingIndicator = document.getElementById('typing-indicator');
+            
+            let tripData = {
+                destination: null,
+                startDate: null,
+                endDate: null,
+                travelers: null,
+                travelerTypes: [],
+                interests: [],
+                mustHaves: [],
+                budget: null,
+                accommodation: null,
+                accommodationStyle: null,
+                transportation: null,
+                dietaryRestrictions: [],
+                mobilityNeeds: null,
+                specialOccasion: null,
+                pace: null,
+                climatePreference: null,
+                roomType: null,
+                mealPlan: null,
+                petFriendly: null,
+                languageNeeds: [],
+                techNeeds: [],
+                photographyPriority: null,
+                luggageType: null,
+                insuranceNeeds: null,
+                paymentPreferences: []
+            };
+            
+            let currentStep = 'welcome';
+            
+            function addMessage(text, isUser) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(isUser ? 'user-message' : 'bot-message');
+                messageDiv.textContent = text;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            function addQuickReplies(replies) {
+                const container = document.createElement('div');
+                replies.forEach(reply => {
+                    const replyElement = document.createElement('span');
+                    replyElement.classList.add('quick-reply');
+                    replyElement.textContent = reply;
+                    replyElement.addEventListener('click', function() {
+                        userInput.value = reply;
+                        document.getElementById('send-button').click();
+                    });
+                    container.appendChild(replyElement);
+                });
+                chatMessages.appendChild(container);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            function showTypingIndicator() {
+                typingIndicator.style.display = 'block';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            function hideTypingIndicator() {
+                typingIndicator.style.display = 'none';
+            }
+            
+            function botResponse(text, quickReplies = null) {
+                showTypingIndicator();
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    addMessage(text, false);
+                    if (quickReplies) {
+                        addQuickReplies(quickReplies);
+                    }
+                }, 1000);
+            }
+            
+            function handleUserInput() {
+                const input = userInput.value.trim();
+                if (!input) return;
+                
+                addMessage(input, true);
+                userInput.value = '';
+                
+                switch(currentStep) {
+                    case 'welcome':
+                        tripData.destination = input;
+                        currentStep = 'dates';
+                        botResponse(`Great choice! ${input} sounds wonderful. When will your trip start? (YYYY-MM-DD)`);
+                        break;
+                        
+                    case 'dates':
+                        if (isValidDate(input)) {
+                            tripData.startDate = input;
+                            currentStep = 'end_date';
+                            botResponse("When will your trip end? (YYYY-MM-DD)");
+                        } else {
+                            botResponse("Please enter the date in YYYY-MM-DD format.");
+                        }
+                        break;
+                        
+                    case 'end_date':
+                        if (isValidDate(input) && input > tripData.startDate) {
+                            tripData.endDate = input;
+                            currentStep = 'travelers';
+                            botResponse("How many people will be traveling in total?");
+                        } else if (input <= tripData.startDate) {
+                            botResponse("End date must be after start date. Please try again.");
+                        } else {
+                            botResponse("Please enter the date in YYYY-MM-DD format.");
+                        }
+                        break;
+                        
+                    case 'travelers':
+                        if (/^\d+$/.test(input) && parseInt(input) > 0) {
+                            tripData.travelers = parseInt(input);
+                            currentStep = 'traveler_types';
+                            botResponse("Who is traveling? (Select all that apply)", 
+                                ["Adults only", "Adults and children", "Adults, children, and seniors", "Seniors only"]);
+                        } else {
+                            botResponse("Please enter a valid number of travelers.");
+                        }
+                        break;
+                        
+                    case 'traveler_types':
+                        tripData.travelerTypes = input.split(',').map(item => item.trim());
+                        currentStep = 'interests';
+                        botResponse("What are your main interests? (e.g., beach, hiking, museums, food, shopping, nightlife, wildlife, sports)");
+                        break;
+                        
+                    case 'interests':
+                        tripData.interests = input.split(',').map(item => item.trim());
+                        currentStep = 'must_haves';
+                        botResponse("Any must-have experiences? (e.g., specific attractions, local festivals, unique activities)");
+                        break;
+                        
+                    case 'must_haves':
+                        tripData.mustHaves = input.split(',').map(item => item.trim());
+                        currentStep = 'budget';
+                        botResponse("What's your approximate budget per person for this trip? (e.g., $1000, $2000-3000, luxury)");
+                        break;
+                        
+                    case 'budget':
+                        tripData.budget = input;
+                        currentStep = 'accommodation';
+                        botResponse("What type of accommodation do you prefer?", 
+                            ["Hotel", "Resort", "Vacation rental", "Hostel", "Luxury", "Budget-friendly"]);
+                        break;
+                        
+                    case 'accommodation':
+                        tripData.accommodation = input;
+                        currentStep = 'accommodation_style';
+                        botResponse("What style of accommodation?", 
+                            ["Modern", "Boutique", "Traditional", "Rustic", "Beachfront", "City center"]);
+                        break;
+                        
+                    case 'accommodation_style':
+                        tripData.accommodationStyle = input;
+                        currentStep = 'transportation';
+                        botResponse("How will you be traveling there?", 
+                            ["Flight", "Train", "Road trip", "Cruise", "Combination"]);
+                        break;
+                        
+                    case 'transportation':
+                        tripData.transportation = input;
+                        currentStep = 'dietary';
+                        botResponse("Any dietary restrictions we should consider?", 
+                            ["None", "Vegetarian", "Vegan", "Gluten-free", "Kosher", "Halal", "Other"]);
+                        break;
+                        
+                    case 'dietary':
+                        tripData.dietaryRestrictions = input.split(',').map(item => item.trim());
+                        currentStep = 'mobility';
+                        botResponse("Any mobility needs or accessibility requirements?", 
+                            ["None", "Wheelchair accessible", "Limited walking", "Other needs"]);
+                        break;
+                        
+                    case 'mobility':
+                        tripData.mobilityNeeds = input;
+                        currentStep = 'occasion';
+                        botResponse("Is this trip for a special occasion?", 
+                            ["No", "Honeymoon", "Anniversary", "Birthday", "Family reunion", "Business"]);
+                        break;
+                        
+                    case 'occasion':
+                        tripData.specialOccasion = input;
+                        currentStep = 'pace';
+                        botResponse("What pace do you prefer for your trip?", 
+                            ["Relaxed", "Moderate", "Fast-paced", "Mixed"]);
+                        break;
+                        
+                    case 'pace':
+                        tripData.pace = input;
+                        currentStep = 'climate';
+                        botResponse("What climate do you prefer for your trip?", 
+                            ["Warm", "Cool", "Tropical", "Mountain", "No preference"]);
+                        break;
+                        
+                    case 'climate':
+                        tripData.climatePreference = input;
+                        currentStep = 'room_type';
+                        botResponse("What type of room do you prefer?", 
+                            ["Standard", "Deluxe", "Suite", "Family", "Accessible"]);
+                        break;
+                        
+                    case 'room_type':
+                        tripData.roomType = input;
+                        currentStep = 'meal_plan';
+                        botResponse("Do you prefer any specific meal plan?", 
+                            ["None", "Breakfast only", "Half board", "Full board", "All inclusive"]);
+                        break;
+                        
+                    case 'meal_plan':
+                        tripData.mealPlan = input;
+                        currentStep = 'pets';
+                        botResponse("Will you be traveling with pets?", 
+                            ["No", "Yes - dog", "Yes - cat", "Yes - other"]);
+                        break;
+                        
+                    case 'pets':
+                        tripData.petFriendly = input;
+                        currentStep = 'languages';
+                        botResponse("Any language assistance needed?", 
+                            ["None", "English", "Spanish", "French", "Other"]);
+                        break;
+                        
+                    case 'languages':
+                        tripData.languageNeeds = input.split(',').map(item => item.trim());
+                        currentStep = 'tech';
+                        botResponse("Any technology needs?", 
+                            ["None", "WiFi essential", "Workstation", "International adapters", "Mobile hotspot"]);
+                        break;
+                        
+                    case 'tech':
+                        tripData.techNeeds = input.split(',').map(item => item.trim());
+                        currentStep = 'photography';
+                        botResponse("How important is photography on this trip?", 
+                            ["Not important", "Somewhat important", "Very important", "Professional needs"]);
+                        break;
+                        
+                    case 'photography':
+                        tripData.photographyPriority = input;
+                        currentStep = 'luggage';
+                        botResponse("What luggage type will you primarily use?", 
+                            ["Backpack", "Carry-on", "Checked luggage", "Multiple bags"]);
+                        break;
+                        
+                    case 'luggage':
+                        tripData.luggageType = input;
+                        currentStep = 'insurance';
+                        botResponse("Do you need travel insurance?", 
+                            ["No", "Basic coverage", "Comprehensive", "Cancel for any reason"]);
+                        break;
+                        
+                    case 'insurance':
+                        tripData.insuranceNeeds = input;
+                        currentStep = 'payment';
+                        botResponse("Preferred payment methods?", 
+                            ["Credit cards", "Digital wallet", "Bank transfer", "Cryptocurrency", "Multiple methods"]);
+                        break;
+                        
+                    case 'payment':
+                        tripData.paymentPreferences = input.split(',').map(item => item.trim());
+                        currentStep = 'complete';
+                        showTripSummary();
+                        break;
+                        
+                    case 'itinerary_decision':
+                        if (input.toLowerCase() === 'yes') {
+                            suggestItinerary();
+                        } else {
+                            botResponse("Okay, let me know if you'd like to change anything about your trip!");
+                        }
+                        break;
+                        
+                    case 'booking_decision':
+                        if (input.toLowerCase() === 'yes') {
+                            botResponse("Great! I can connect you with our booking partners. Would you like me to email you options or show them here?", 
+                                ["Email me", "Show here", "Not yet"]);
+                        } else {
+                            botResponse("No problem! Your trip details have been saved. Let me know if you'd like to make any changes.");
+                        }
+                        break;
+                        
+                    default:
+                        botResponse("I'm not sure how to respond to that. Could you clarify?");
+                }
+            }
+            
+            function isValidDate(dateString) {
+                const regex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!regex.test(dateString)) return false;
+                const date = new Date(dateString);
+                return !isNaN(date.getTime());
+            }
+            
+            function showTripSummary() {
+                let summary = "=== Your Complete Trip Profile ===\n\n";
+                summary += `🌍 Destination: ${tripData.destination}\n`;
+                summary += `📅 Dates: ${tripData.startDate} to ${tripData.endDate} (${getTripDuration()} days)\n`;
+                summary += `👥 Travelers: ${tripData.travelers} (${tripData.travelerTypes.join(', ')})\n`;
+                summary += `🎯 Interests: ${tripData.interests.join(', ')}\n`;
+                summary += `⭐ Must-haves: ${tripData.mustHaves.join(', ') || "None specified"}\n`;
+                summary += `💰 Budget: ${tripData.budget}\n`;
+                summary += `🏨 Accommodation: ${tripData.accommodation} (${tripData.accommodationStyle})\n`;
+                summary += `✈️ Transportation: ${tripData.transportation}\n`;
+                summary += `🍽️ Dietary: ${tripData.dietaryRestrictions.join(', ') || "None"}\n`;
+                summary += `♿ Mobility: ${tripData.mobilityNeeds || "None"}\n`;
+                summary += `🎉 Special occasion: ${tripData.specialOccasion || "None"}\n`;
+                summary += `🏃 Pace: ${tripData.pace}\n`;
+                summary += `🌦️ Climate: ${tripData.climatePreference}\n`;
+                summary += `🛏️ Room type: ${tripData.roomType}\n`;
+                summary += `🍽️ Meal plan: ${tripData.mealPlan}\n`;
+                summary += `🐾 Pets: ${tripData.petFriendly || "No"}\n`;
+                summary += `🗣️ Languages: ${tripData.languageNeeds.join(', ') || "None"}\n`;
+                summary += `💻 Tech: ${tripData.techNeeds.join(', ') || "None"}\n`;
+                summary += `📸 Photography: ${tripData.photographyPriority}\n`;
+                summary += `🧳 Luggage: ${tripData.luggageType}\n`;
+                summary += `🛡️ Insurance: ${tripData.insuranceNeeds}\n`;
+                summary += `💳 Payment: ${tripData.paymentPreferences.join(', ')}\n\n`;
+                summary += "Would you like me to suggest a detailed itinerary based on this information? (yes/no)";
+                
+                currentStep = 'itinerary_decision';
+                botResponse(summary);
+            }
+            
+            function getTripDuration() {
+                const start = new Date(tripData.startDate);
+                const end = new Date(tripData.endDate);
+                return Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            }
+            
+            function suggestItinerary() {
+                let itinerary = `✈️ Suggested ${getTripDuration()}-day ${tripData.pace} itinerary for ${tripData.destination}:\n\n`;
+                
+                // Climate considerations
+                if (tripData.climatePreference) {
+                    itinerary += `🌤️ Packed for ${tripData.climatePreference.toLowerCase()} weather\n`;
+                }
+                
+                // Photography notes
+                if (tripData.photographyPriority && tripData.photographyPriority !== "Not important") {
+                    itinerary += `📸 Photography spots included (${tripData.photographyPriority.toLowerCase()})\n`;
+                }
+                
+                // Pet-friendly notes
+                if (tripData.petFriendly && tripData.petFriendly !== "No") {
+                    itinerary += `🐕 Pet-friendly locations included\n`;
+                }
+                
+                // Day-by-day itinerary
+                itinerary += "\n📅 Day 1: Arrival & Orientation\n";
+                itinerary += `- Check into ${tripData.roomType.toLowerCase()} ${tripData.accommodation.toLowerCase()}\n`;
+                if (tripData.mealPlan && tripData.mealPlan !== "None") {
+                    itinerary += `- ${tripData.mealPlan} meals included\n`;
+                }
+                
+                // [Rest of itinerary generation...]
+                
+                itinerary += "\nWould you like to book any of these activities or accommodations? (yes/no)";
+                currentStep = 'booking_decision';
+                botResponse(itinerary);
+            }
+            
+            sendButton.addEventListener('click', handleUserInput);
+            
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleUserInput();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
